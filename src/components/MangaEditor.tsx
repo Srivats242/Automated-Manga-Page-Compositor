@@ -9,6 +9,26 @@ const PAGE_WIDTH = 600;
 const PAGE_HEIGHT = 850;
 const MIN_SIZE = 50;
 
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(value, max));
+}
+
+function constrainArtwork(panel: MangaPanelType): MangaPanelType {
+  if (!panel.image) return panel;
+
+  const scale = clamp(panel.imageScale, 1, 3);
+
+  const maxX = (panel.width * (scale - 1)) / 2;
+  const maxY = (panel.height * (scale - 1)) / 2;
+
+  return {
+    ...panel,
+    imageScale: scale,
+    imageX: clamp(panel.imageX, -maxX, maxX),
+    imageY: clamp(panel.imageY, -maxY, maxY),
+  };
+}
+
 export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
@@ -28,6 +48,7 @@ export default function MangaEditor() {
       imageX: 0,
       imageY: 0,
       imageScale: 1,
+      imageMode: "panel",
     };
 
     setPanels((current) => [...current, newPanel]);
@@ -44,43 +65,28 @@ export default function MangaEditor() {
 
         const updated = { ...panel, ...changes };
 
-        const width = Math.max(
-          MIN_SIZE,
-          Math.min(updated.width, PAGE_WIDTH)
-        );
+        const width = clamp(updated.width, MIN_SIZE, PAGE_WIDTH);
+        const height = clamp(updated.height, MIN_SIZE, PAGE_HEIGHT);
+        const x = clamp(updated.x, 0, PAGE_WIDTH - width);
+        const y = clamp(updated.y, 0, PAGE_HEIGHT - height);
 
-        const height = Math.max(
-          MIN_SIZE,
-          Math.min(updated.height, PAGE_HEIGHT)
-        );
-
-        const x = Math.max(
-          0,
-          Math.min(updated.x, PAGE_WIDTH - width)
-        );
-
-        const y = Math.max(
-          0,
-          Math.min(updated.y, PAGE_HEIGHT - height)
-        );
-
-        return {
+        return constrainArtwork({
           ...updated,
           x,
           y,
           width,
           height,
-          imageScale: Math.max(
-            1,
-            Math.min(updated.imageScale, 3)
-          ),
-        };
+        });
       })
     );
   }
 
   function movePanel(id: string, x: number, y: number) {
     updatePanel(id, { x, y });
+  }
+
+  function moveArtwork(id: string, x: number, y: number) {
+    updatePanel(id, { imageX: x, imageY: y });
   }
 
   function resizePanel(
@@ -92,17 +98,13 @@ export default function MangaEditor() {
       current.map((panel) => {
         if (panel.id !== id) return panel;
 
-        return {
+        const updated = {
           ...panel,
-          width: Math.max(
-            MIN_SIZE,
-            Math.min(width, PAGE_WIDTH - panel.x)
-          ),
-          height: Math.max(
-            MIN_SIZE,
-            Math.min(height, PAGE_HEIGHT - panel.y)
-          ),
+          width: clamp(width, MIN_SIZE, PAGE_WIDTH - panel.x),
+          height: clamp(height, MIN_SIZE, PAGE_HEIGHT - panel.y),
         };
+
+        return constrainArtwork(updated);
       })
     );
   }
@@ -157,6 +159,7 @@ export default function MangaEditor() {
           imageX: 0,
           imageY: 0,
           imageScale: 1,
+          imageMode: "artwork",
         });
       }
     };
@@ -173,6 +176,7 @@ export default function MangaEditor() {
       imageX: 0,
       imageY: 0,
       imageScale: 1,
+      imageMode: "panel",
     });
   }
 
@@ -226,6 +230,7 @@ export default function MangaEditor() {
                 onSelect={() => setSelectedPanelId(panel.id)}
                 onMove={movePanel}
                 onResize={resizePanel}
+                onMoveArtwork={moveArtwork}
               />
             ))}
           </div>
@@ -293,6 +298,24 @@ export default function MangaEditor() {
                 {selectedPanel.image && (
                   <div className="mt-4 space-y-4">
                     <label className="block text-sm">
+                      Drag Mode
+                      <select
+                        value={selectedPanel.imageMode}
+                        onChange={(event) =>
+                          updatePanel(selectedPanel.id, {
+                            imageMode: event.target.value as
+                              | "panel"
+                              | "artwork",
+                          })
+                        }
+                        className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
+                      >
+                        <option value="panel">Move Panel</option>
+                        <option value="artwork">Move Artwork</option>
+                      </select>
+                    </label>
+
+                    <label className="block text-sm">
                       Image X
                       <input
                         type="range"
@@ -307,7 +330,7 @@ export default function MangaEditor() {
                         className="mt-2 w-full"
                       />
                       <span className="text-xs text-zinc-400">
-                        {selectedPanel.imageX}px
+                        {Math.round(selectedPanel.imageX)}px
                       </span>
                     </label>
 
@@ -326,7 +349,7 @@ export default function MangaEditor() {
                         className="mt-2 w-full"
                       />
                       <span className="text-xs text-zinc-400">
-                        {selectedPanel.imageY}px
+                        {Math.round(selectedPanel.imageY)}px
                       </span>
                     </label>
 

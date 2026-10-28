@@ -11,6 +11,7 @@ type Props = {
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, width: number, height: number) => void;
+  onMoveArtwork: (id: string, x: number, y: number) => void;
 };
 
 export default function MangaPanel({
@@ -19,12 +20,14 @@ export default function MangaPanel({
   onSelect,
   onMove,
   onResize,
+  onMoveArtwork,
 }: Props) {
   const dragStart = useRef<{
     pointerX: number;
     pointerY: number;
     x: number;
     y: number;
+    mode: "panel" | "artwork";
   } | null>(null);
 
   const resizeStart = useRef<{
@@ -38,11 +41,17 @@ export default function MangaPanel({
     event.stopPropagation();
     onSelect();
 
+    const mode =
+      panel.image && panel.imageMode === "artwork"
+        ? "artwork"
+        : "panel";
+
     dragStart.current = {
       pointerX: event.clientX,
       pointerY: event.clientY,
-      x: panel.x,
-      y: panel.y,
+      x: mode === "artwork" ? panel.imageX : panel.x,
+      y: mode === "artwork" ? panel.imageY : panel.y,
+      mode,
     };
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -54,11 +63,19 @@ export default function MangaPanel({
     const dx = event.clientX - dragStart.current.pointerX;
     const dy = event.clientY - dragStart.current.pointerY;
 
-    onMove(
-      panel.id,
-      dragStart.current.x + dx,
-      dragStart.current.y + dy
-    );
+    if (dragStart.current.mode === "artwork") {
+      onMoveArtwork(
+        panel.id,
+        dragStart.current.x + dx,
+        dragStart.current.y + dy
+      );
+    } else {
+      onMove(
+        panel.id,
+        dragStart.current.x + dx,
+        dragStart.current.y + dy
+      );
+    }
   }
 
   function stopDrag() {
@@ -114,7 +131,10 @@ export default function MangaPanel({
         width: panel.width,
         height: panel.height,
         touchAction: "none",
-        cursor: "move",
+        cursor:
+          panel.image && panel.imageMode === "artwork"
+            ? "grab"
+            : "move",
       }}
     >
       <div className="relative h-full w-full overflow-hidden bg-white">

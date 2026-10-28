@@ -9,4 +9,5 @@ export type MangaPanel = {
   imageX: number;
   imageY: number;
   imageScale: number;
+  imageMode: "panel" | "artwork";
 };
