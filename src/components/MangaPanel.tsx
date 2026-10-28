@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef } from "react";
@@ -18,66 +19,58 @@ export default function MangaPanel({
   onMove,
   onResize,
 }: Props) {
-  const dragOffset = useRef({
-    x: 0,
-    y: 0,
-  });
+  const dragStart = useRef<{
+    pointerX: number;
+    pointerY: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
-  const resizeStart = useRef({
-    mouseX: 0,
-    mouseY: 0,
-    width: 0,
-    height: 0,
-  });
+  const resizeStart = useRef<{
+    pointerX: number;
+    pointerY: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
-  // Start dragging the panel.
-  function handlePointerDown(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
+  function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     event.stopPropagation();
-
     onSelect();
 
-    dragOffset.current = {
-      x: event.clientX - panel.x,
-      y: event.clientY - panel.y,
+    dragStart.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      x: panel.x,
+      y: panel.y,
     };
 
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  // Move the panel while dragging.
-  function handlePointerMove(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-      return;
-    }
+  function drag(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragStart.current) return;
 
-    const newX = event.clientX - dragOffset.current.x;
-    const newY = event.clientY - dragOffset.current.y;
+    const dx = event.clientX - dragStart.current.pointerX;
+    const dy = event.clientY - dragStart.current.pointerY;
 
-    onMove(panel.id, newX, newY);
+    onMove(
+      panel.id,
+      dragStart.current.x + dx,
+      dragStart.current.y + dy
+    );
   }
 
-  // Stop dragging.
-  function handlePointerUp(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+  function stopDrag() {
+    dragStart.current = null;
   }
 
-  // Start resizing.
-  function handleResizePointerDown(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
+  function startResize(event: React.PointerEvent<HTMLDivElement>) {
     event.stopPropagation();
+    onSelect();
 
     resizeStart.current = {
-      mouseX: event.clientX,
-      mouseY: event.clientY,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
       width: panel.width,
       height: panel.height,
     };
@@ -85,47 +78,34 @@ export default function MangaPanel({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  // Resize while the mouse moves.
-  function handleResizePointerMove(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-      return;
-    }
+  function resize(event: React.PointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
 
-    const deltaX =
-      event.clientX - resizeStart.current.mouseX;
+    if (!resizeStart.current) return;
 
-    const deltaY =
-      event.clientY - resizeStart.current.mouseY;
+    const dx = event.clientX - resizeStart.current.pointerX;
+    const dy = event.clientY - resizeStart.current.pointerY;
 
-    const newWidth =
-      resizeStart.current.width + deltaX;
-
-    const newHeight =
-      resizeStart.current.height + deltaY;
-
-    onResize(panel.id, newWidth, newHeight);
+    onResize(
+      panel.id,
+      resizeStart.current.width + dx,
+      resizeStart.current.height + dy
+    );
   }
 
-  // Stop resizing.
-  function handleResizePointerUp(
-    event: React.PointerEvent<HTMLDivElement>
-  ) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+  function stopResize(event: React.PointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    resizeStart.current = null;
   }
 
   return (
     <div
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      className={`absolute cursor-move border-4 ${
-        selected
-          ? "border-blue-500 bg-blue-50"
-          : "border-black bg-zinc-100"
+      onPointerDown={startDrag}
+      onPointerMove={drag}
+      onPointerUp={stopDrag}
+      onPointerCancel={stopDrag}
+      className={`absolute overflow-visible border-2 ${
+        selected ? "border-blue-500" : "border-black"
       }`}
       style={{
         left: panel.x,
@@ -133,17 +113,32 @@ export default function MangaPanel({
         width: panel.width,
         height: panel.height,
         touchAction: "none",
+        cursor: "move",
       }}
     >
+      <div className="h-full w-full overflow-hidden bg-white">
+        {panel.image ? (
+          <img
+            src={panel.image}
+            alt="Manga panel artwork"
+            draggable={false}
+            className="h-full w-full select-none object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+            Empty Panel
+          </div>
+        )}
+      </div>
+
       {selected && (
         <div
-          onPointerDown={handleResizePointerDown}
-          onPointerMove={handleResizePointerMove}
-          onPointerUp={handleResizePointerUp}
-          className="absolute -bottom-2 -right-2 h-4 w-4 cursor-se-resize border-2 border-white bg-blue-500"
-          style={{
-            touchAction: "none",
-          }}
+          onPointerDown={startResize}
+          onPointerMove={resize}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+          className="absolute -bottom-2 -right-2 z-10 h-4 w-4 cursor-nwse-resize rounded-sm bg-blue-500"
+          style={{ touchAction: "none" }}
         />
       )}
     </div>

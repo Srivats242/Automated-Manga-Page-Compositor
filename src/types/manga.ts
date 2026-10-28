@@ -4,4 +4,5 @@ export type MangaPanel = {
   y: number;
   width: number;
   height: number;
+  image?: string
 };

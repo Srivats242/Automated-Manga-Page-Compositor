@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { MangaPanel as MangaPanelType } from "../types/manga";
 import MangaPanel from "./MangaPanel";
 
@@ -12,6 +12,7 @@ const MIN_SIZE = 50;
 export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPanel = panels.find(
     (panel) => panel.id === selectedPanelId
@@ -123,6 +124,34 @@ export default function MangaEditor() {
     setSelectedPanelId(copy.id);
   }
 
+  function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !selectedPanelId) return;
+
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      alert("Please upload a PNG, JPG, or WebP image.");
+      event.target.value = "";
+      return;
+    }
+
+    const panelId = selectedPanelId;
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        updatePanel(panelId, { image: reader.result });
+      }
+    };
+
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  }
+
+  function removeImage() {
+    if (!selectedPanelId) return;
+    updatePanel(selectedPanelId, { image: undefined });
+  }
+
   return (
     <main className="min-h-screen bg-zinc-900 text-white">
       <header className="flex h-16 items-center justify-between border-b border-zinc-700 px-6">
@@ -196,7 +225,6 @@ export default function MangaEditor() {
                     value={selectedPanel[property]}
                     onChange={(event) => {
                       const value = event.target.valueAsNumber;
-
                       if (!Number.isFinite(value)) return;
 
                       updatePanel(selectedPanel.id, {
@@ -207,6 +235,36 @@ export default function MangaEditor() {
                   />
                 </label>
               ))}
+
+              <div className="border-t border-zinc-600 pt-4">
+                <h3 className="mb-3 font-medium">Artwork</h3>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={uploadImage}
+                  className="hidden"
+                />
+
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full rounded bg-emerald-600 px-4 py-2 hover:bg-emerald-700"
+                >
+                  {selectedPanel.image
+                    ? "Replace Artwork"
+                    : "Upload Artwork"}
+                </button>
+
+                {selectedPanel.image && (
+                  <button
+                    onClick={removeImage}
+                    className="mt-2 w-full rounded bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
+                  >
+                    Remove Artwork
+                  </button>
+                )}
+              </div>
 
               <button
                 onClick={duplicatePanel}
