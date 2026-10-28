@@ -2,6 +2,7 @@
 "use client";
 
 import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { MangaPanel as MangaPanelType } from "../types/manga";
 
 type Props = {
@@ -33,7 +34,7 @@ export default function MangaPanel({
     height: number;
   } | null>(null);
 
-  function startDrag(event: React.PointerEvent<HTMLDivElement>) {
+  function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
 
@@ -47,7 +48,7 @@ export default function MangaPanel({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function drag(event: React.PointerEvent<HTMLDivElement>) {
+  function drag(event: ReactPointerEvent<HTMLDivElement>) {
     if (!dragStart.current) return;
 
     const dx = event.clientX - dragStart.current.pointerX;
@@ -64,7 +65,7 @@ export default function MangaPanel({
     dragStart.current = null;
   }
 
-  function startResize(event: React.PointerEvent<HTMLDivElement>) {
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
 
@@ -78,7 +79,7 @@ export default function MangaPanel({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function resize(event: React.PointerEvent<HTMLDivElement>) {
+  function resize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
 
     if (!resizeStart.current) return;
@@ -93,7 +94,7 @@ export default function MangaPanel({
     );
   }
 
-  function stopResize(event: React.PointerEvent<HTMLDivElement>) {
+  function stopResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     resizeStart.current = null;
   }
@@ -104,7 +105,7 @@ export default function MangaPanel({
       onPointerMove={drag}
       onPointerUp={stopDrag}
       onPointerCancel={stopDrag}
-      className={`absolute overflow-visible border-2 ${
+      className={`absolute border-2 ${
         selected ? "border-blue-500" : "border-black"
       }`}
       style={{
@@ -116,13 +117,20 @@ export default function MangaPanel({
         cursor: "move",
       }}
     >
-      <div className="h-full w-full overflow-hidden bg-white">
+      <div className="relative h-full w-full overflow-hidden bg-white">
         {panel.image ? (
           <img
             src={panel.image}
             alt="Manga panel artwork"
             draggable={false}
-            className="h-full w-full select-none object-cover"
+            className="absolute h-full w-full select-none object-cover"
+            style={{
+              left: panel.imageX,
+              top: panel.imageY,
+              transform: `scale(${panel.imageScale})`,
+              transformOrigin: "center center",
+              pointerEvents: "none",
+            }}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-zinc-400">

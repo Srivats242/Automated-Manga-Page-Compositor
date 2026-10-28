@@ -25,6 +25,9 @@ export default function MangaEditor() {
       y: 50,
       width: 250,
       height: 180,
+      imageX: 0,
+      imageY: 0,
+      imageScale: 1,
     };
 
     setPanels((current) => [...current, newPanel]);
@@ -61,7 +64,17 @@ export default function MangaEditor() {
           Math.min(updated.y, PAGE_HEIGHT - height)
         );
 
-        return { ...updated, x, y, width, height };
+        return {
+          ...updated,
+          x,
+          y,
+          width,
+          height,
+          imageScale: Math.max(
+            1,
+            Math.min(updated.imageScale, 3)
+          ),
+        };
       })
     );
   }
@@ -139,7 +152,12 @@ export default function MangaEditor() {
 
     reader.onload = () => {
       if (typeof reader.result === "string") {
-        updatePanel(panelId, { image: reader.result });
+        updatePanel(panelId, {
+          image: reader.result,
+          imageX: 0,
+          imageY: 0,
+          imageScale: 1,
+        });
       }
     };
 
@@ -149,7 +167,23 @@ export default function MangaEditor() {
 
   function removeImage() {
     if (!selectedPanelId) return;
-    updatePanel(selectedPanelId, { image: undefined });
+
+    updatePanel(selectedPanelId, {
+      image: undefined,
+      imageX: 0,
+      imageY: 0,
+      imageScale: 1,
+    });
+  }
+
+  function resetCrop() {
+    if (!selectedPanelId) return;
+
+    updatePanel(selectedPanelId, {
+      imageX: 0,
+      imageY: 0,
+      imageScale: 1,
+    });
   }
 
   return (
@@ -257,12 +291,79 @@ export default function MangaEditor() {
                 </button>
 
                 {selectedPanel.image && (
-                  <button
-                    onClick={removeImage}
-                    className="mt-2 w-full rounded bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
-                  >
-                    Remove Artwork
-                  </button>
+                  <div className="mt-4 space-y-4">
+                    <label className="block text-sm">
+                      Image X
+                      <input
+                        type="range"
+                        min={-300}
+                        max={300}
+                        value={selectedPanel.imageX}
+                        onChange={(event) =>
+                          updatePanel(selectedPanel.id, {
+                            imageX: Number(event.target.value),
+                          })
+                        }
+                        className="mt-2 w-full"
+                      />
+                      <span className="text-xs text-zinc-400">
+                        {selectedPanel.imageX}px
+                      </span>
+                    </label>
+
+                    <label className="block text-sm">
+                      Image Y
+                      <input
+                        type="range"
+                        min={-300}
+                        max={300}
+                        value={selectedPanel.imageY}
+                        onChange={(event) =>
+                          updatePanel(selectedPanel.id, {
+                            imageY: Number(event.target.value),
+                          })
+                        }
+                        className="mt-2 w-full"
+                      />
+                      <span className="text-xs text-zinc-400">
+                        {selectedPanel.imageY}px
+                      </span>
+                    </label>
+
+                    <label className="block text-sm">
+                      Zoom
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.1}
+                        value={selectedPanel.imageScale}
+                        onChange={(event) =>
+                          updatePanel(selectedPanel.id, {
+                            imageScale: Number(event.target.value),
+                          })
+                        }
+                        className="mt-2 w-full"
+                      />
+                      <span className="text-xs text-zinc-400">
+                        {Math.round(selectedPanel.imageScale * 100)}%
+                      </span>
+                    </label>
+
+                    <button
+                      onClick={resetCrop}
+                      className="w-full rounded bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
+                    >
+                      Reset Crop
+                    </button>
+
+                    <button
+                      onClick={removeImage}
+                      className="w-full rounded bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
+                    >
+                      Remove Artwork
+                    </button>
+                  </div>
                 )}
               </div>
 

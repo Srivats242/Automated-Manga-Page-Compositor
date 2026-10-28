@@ -1,8 +1,12 @@
+
 export type MangaPanel = {
   id: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  image?: string
+  image?: string;
+  imageX: number;
+  imageY: number;
+  imageScale: number;
 };
