@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,10 +7,15 @@ import MangaPanel from "./MangaPanel";
 
 const PAGE_WIDTH = 600;
 const PAGE_HEIGHT = 850;
+const MIN_SIZE = 50;
 
 export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+
+  const selectedPanel = panels.find(
+    (panel) => panel.id === selectedPanelId
+  );
 
   function addPanel() {
     const newPanel: MangaPanelType = {
@@ -20,35 +26,47 @@ export default function MangaEditor() {
       height: 180,
     };
 
-    setPanels((currentPanels) => [...currentPanels, newPanel]);
+    setPanels((current) => [...current, newPanel]);
     setSelectedPanelId(newPanel.id);
   }
 
-  function movePanel(id: string, x: number, y: number) {
-    setPanels((currentPanels) =>
-      currentPanels.map((panel) => {
-        if (panel.id !== id) {
-          return panel;
-        }
+  function updatePanel(
+    id: string,
+    changes: Partial<MangaPanelType>
+  ) {
+    setPanels((current) =>
+      current.map((panel) => {
+        if (panel.id !== id) return panel;
 
-        // Prevent the panel from being dragged outside the page.
-        const boundedX = Math.max(
-          0,
-          Math.min(x, PAGE_WIDTH - panel.width)
+        const updated = { ...panel, ...changes };
+
+        const width = Math.max(
+          MIN_SIZE,
+          Math.min(updated.width, PAGE_WIDTH)
         );
 
-        const boundedY = Math.max(
-          0,
-          Math.min(y, PAGE_HEIGHT - panel.height)
+        const height = Math.max(
+          MIN_SIZE,
+          Math.min(updated.height, PAGE_HEIGHT)
         );
 
-        return {
-          ...panel,
-          x: boundedX,
-          y: boundedY,
-        };
+        const x = Math.max(
+          0,
+          Math.min(updated.x, PAGE_WIDTH - width)
+        );
+
+        const y = Math.max(
+          0,
+          Math.min(updated.y, PAGE_HEIGHT - height)
+        );
+
+        return { ...updated, x, y, width, height };
       })
     );
+  }
+
+  function movePanel(id: string, x: number, y: number) {
+    updatePanel(id, { x, y });
   }
 
   function resizePanel(
@@ -56,41 +74,57 @@ export default function MangaEditor() {
     width: number,
     height: number
   ) {
-    setPanels((currentPanels) =>
-      currentPanels.map((panel) => {
-        if (panel.id !== id) {
-          return panel;
-        }
-
-        const minWidth = 50;
-        const minHeight = 50;
-
-        // Maximum size depends on the panel's current position.
-        const maxWidth = PAGE_WIDTH - panel.x;
-        const maxHeight = PAGE_HEIGHT - panel.y;
-
-        const boundedWidth = Math.max(
-          minWidth,
-          Math.min(width, maxWidth)
-        );
-
-        const boundedHeight = Math.max(
-          minHeight,
-          Math.min(height, maxHeight)
-        );
+    setPanels((current) =>
+      current.map((panel) => {
+        if (panel.id !== id) return panel;
 
         return {
           ...panel,
-          width: boundedWidth,
-          height: boundedHeight,
+          width: Math.max(
+            MIN_SIZE,
+            Math.min(width, PAGE_WIDTH - panel.x)
+          ),
+          height: Math.max(
+            MIN_SIZE,
+            Math.min(height, PAGE_HEIGHT - panel.y)
+          ),
         };
       })
     );
   }
 
+  function deletePanel() {
+    if (!selectedPanelId) return;
+
+    setPanels((current) =>
+      current.filter((panel) => panel.id !== selectedPanelId)
+    );
+
+    setSelectedPanelId(null);
+  }
+
+  function duplicatePanel() {
+    if (!selectedPanel) return;
+
+    const copy: MangaPanelType = {
+      ...selectedPanel,
+      id: crypto.randomUUID(),
+      x: Math.min(
+        selectedPanel.x + 20,
+        PAGE_WIDTH - selectedPanel.width
+      ),
+      y: Math.min(
+        selectedPanel.y + 20,
+        PAGE_HEIGHT - selectedPanel.height
+      ),
+    };
+
+    setPanels((current) => [...current, copy]);
+    setSelectedPanelId(copy.id);
+  }
+
   return (
     <main className="min-h-screen bg-zinc-900 text-white">
-      {/* Top toolbar */}
       <header className="flex h-16 items-center justify-between border-b border-zinc-700 px-6">
         <h1 className="text-xl font-bold">
           Manga Compositor
@@ -105,25 +139,19 @@ export default function MangaEditor() {
       </header>
 
       <div className="flex min-h-[calc(100vh-4rem)]">
-        {/* Left sidebar */}
         <aside className="w-56 border-r border-zinc-700 bg-zinc-800 p-4">
-          <h2 className="mb-4 font-semibold">
-            Tools
-          </h2>
-
+          <h2 className="mb-4 font-semibold">Tools</h2>
           <p className="text-sm text-zinc-400">
             Panels: {panels.length}
           </p>
         </aside>
 
-        {/* Editor workspace */}
         <section className="flex flex-1 items-start justify-center overflow-auto bg-zinc-700 p-10">
-          {/* Manga page */}
           <div
-            className="relative bg-white shadow-2xl"
+            className="relative shrink-0 bg-white shadow-2xl"
             style={{
-              width: `${PAGE_WIDTH}px`,
-              height: `${PAGE_HEIGHT}px`,
+              width: PAGE_WIDTH,
+              height: PAGE_HEIGHT,
             }}
             onPointerDown={() => setSelectedPanelId(null)}
           >
@@ -132,9 +160,7 @@ export default function MangaEditor() {
                 key={panel.id}
                 panel={panel}
                 selected={selectedPanelId === panel.id}
-                onSelect={() =>
-                  setSelectedPanelId(panel.id)
-                }
+                onSelect={() => setSelectedPanelId(panel.id)}
                 onMove={movePanel}
                 onResize={resizePanel}
               />
@@ -142,16 +168,60 @@ export default function MangaEditor() {
           </div>
         </section>
 
-        {/* Right sidebar */}
-        <aside className="w-64 border-l border-zinc-700 bg-zinc-800 p-4">
-          <h2 className="mb-4 font-semibold">
-            Properties
-          </h2>
+        <aside className="w-64 shrink-0 border-l border-zinc-700 bg-zinc-800 p-4">
+          <h2 className="mb-5 font-semibold">Properties</h2>
 
-          {selectedPanelId ? (
-            <p className="text-sm text-zinc-300">
-              Panel selected
-            </p>
+          {selectedPanel ? (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-400">
+                Selected Panel
+              </p>
+
+              {(
+                ["x", "y", "width", "height"] as const
+              ).map((property) => (
+                <label
+                  key={property}
+                  className="block text-sm capitalize"
+                >
+                  {property}
+                  <input
+                    type="number"
+                    min={0}
+                    max={
+                      property === "x" || property === "width"
+                        ? PAGE_WIDTH
+                        : PAGE_HEIGHT
+                    }
+                    value={selectedPanel[property]}
+                    onChange={(event) => {
+                      const value = event.target.valueAsNumber;
+
+                      if (!Number.isFinite(value)) return;
+
+                      updatePanel(selectedPanel.id, {
+                        [property]: value,
+                      });
+                    }}
+                    className="mt-1 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
+                  />
+                </label>
+              ))}
+
+              <button
+                onClick={duplicatePanel}
+                className="w-full rounded bg-blue-600 px-4 py-2 hover:bg-blue-700"
+              >
+                Duplicate Panel
+              </button>
+
+              <button
+                onClick={deletePanel}
+                className="w-full rounded bg-red-600 px-4 py-2 hover:bg-red-700"
+              >
+                Delete Panel
+              </button>
+            </div>
           ) : (
             <p className="text-sm text-zinc-400">
               Select a panel to edit its properties.
