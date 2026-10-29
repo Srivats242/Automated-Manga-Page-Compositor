@@ -13,6 +13,12 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max));
 }
 
+
+function clampRound(value: number, min: number, max: number) {
+  return Math.round(clamp(value, min, max));
+}
+
+
 function constrainArtwork(panel: MangaPanelType): MangaPanelType {
   if (!panel.image) return panel;
 
@@ -24,8 +30,8 @@ function constrainArtwork(panel: MangaPanelType): MangaPanelType {
   return {
     ...panel,
     imageScale: scale,
-    imageX: clamp(panel.imageX, -maxX, maxX),
-    imageY: clamp(panel.imageY, -maxY, maxY),
+    imageX: clampRound(panel.imageX, -maxX, maxX),
+    imageY: clampRound(panel.imageY, -maxY, maxY),
   };
 }
 
@@ -37,6 +43,14 @@ export default function MangaEditor() {
   const selectedPanel = panels.find(
     (panel) => panel.id === selectedPanelId
   );
+
+  const maxImageX = selectedPanel
+  ? (selectedPanel.width * (selectedPanel.imageScale - 1)) / 2
+  : 0;
+
+const maxImageY = selectedPanel
+  ? (selectedPanel.height * (selectedPanel.imageScale - 1)) / 2
+  : 0;
 
   function addPanel() {
     const newPanel: MangaPanelType = {
@@ -65,10 +79,10 @@ export default function MangaEditor() {
 
         const updated = { ...panel, ...changes };
 
-        const width = clamp(updated.width, MIN_SIZE, PAGE_WIDTH);
-        const height = clamp(updated.height, MIN_SIZE, PAGE_HEIGHT);
-        const x = clamp(updated.x, 0, PAGE_WIDTH - width);
-        const y = clamp(updated.y, 0, PAGE_HEIGHT - height);
+        const width = clampRound(updated.width, MIN_SIZE, PAGE_WIDTH);
+        const height = clampRound(updated.height, MIN_SIZE, PAGE_HEIGHT);
+        const x = clampRound(updated.x, 0, PAGE_WIDTH - width);
+        const y = clampRound(updated.y, 0, PAGE_HEIGHT - height);
 
         return constrainArtwork({
           ...updated,
@@ -100,8 +114,16 @@ export default function MangaEditor() {
 
         const updated = {
           ...panel,
-          width: clamp(width, MIN_SIZE, PAGE_WIDTH - panel.x),
-          height: clamp(height, MIN_SIZE, PAGE_HEIGHT - panel.y),
+          width: clampRound(
+            width,
+            MIN_SIZE,
+            PAGE_WIDTH - panel.x
+          ),
+          height: clampRound(
+            height,
+            MIN_SIZE,
+            PAGE_HEIGHT - panel.y
+          ),
         };
 
         return constrainArtwork(updated);
@@ -315,43 +337,55 @@ export default function MangaEditor() {
                       </select>
                     </label>
 
+                    
                     <label className="block text-sm">
                       Image X
                       <input
                         type="range"
-                        min={-300}
-                        max={300}
+                        min={-maxImageX}
+                        max={maxImageX}
+                        step={1}
                         value={selectedPanel.imageX}
+                        disabled={maxImageX === 0}
                         onChange={(event) =>
                           updatePanel(selectedPanel.id, {
                             imageX: Number(event.target.value),
                           })
                         }
-                        className="mt-2 w-full"
+                        className="mt-2 w-full disabled:opacity-50"
                       />
                       <span className="text-xs text-zinc-400">
                         {Math.round(selectedPanel.imageX)}px
+                        {" / "}
+                        ±{Math.round(maxImageX)}px
                       </span>
                     </label>
 
+
+                  
                     <label className="block text-sm">
                       Image Y
                       <input
                         type="range"
-                        min={-300}
-                        max={300}
+                        min={-maxImageY}
+                        max={maxImageY}
+                        step={1}
                         value={selectedPanel.imageY}
+                        disabled={maxImageY === 0}
                         onChange={(event) =>
                           updatePanel(selectedPanel.id, {
                             imageY: Number(event.target.value),
                           })
                         }
-                        className="mt-2 w-full"
+                        className="mt-2 w-full disabled:opacity-50"
                       />
                       <span className="text-xs text-zinc-400">
                         {Math.round(selectedPanel.imageY)}px
+                        {" / "}
+                        ±{Math.round(maxImageY)}px
                       </span>
                     </label>
+
 
                     <label className="block text-sm">
                       Zoom
