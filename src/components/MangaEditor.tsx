@@ -1,9 +1,10 @@
-
 "use client";
 
 import { useRef, useState } from "react";
 import type { MangaPanel as MangaPanelType } from "../types/manga";
 import MangaPanel from "./MangaPanel";
+import type { SpeechBubble as SpeechBubbleType } from "../types/speechBubble";
+import SpeechBubble from "./SpeechBubble";
 
 const PAGE_WIDTH = 600;
 const PAGE_HEIGHT = 850;
@@ -39,6 +40,13 @@ export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [bubbles, setBubbles] = useState<SpeechBubbleType[]>([]);
+  const [selectedBubbleId, setSelectedBubbleId] = useState<string | null>(null);
+
+  const selectedBubble = bubbles.find(
+    (bubble) => bubble.id === selectedBubbleId
+  );
 
   const selectedPanel = panels.find(
     (panel) => panel.id === selectedPanelId
@@ -67,6 +75,7 @@ const maxImageY = selectedPanel
 
     setPanels((current) => [...current, newPanel]);
     setSelectedPanelId(newPanel.id);
+    setSelectedBubbleId(null);
   }
 
   function updatePanel(
@@ -211,6 +220,100 @@ const maxImageY = selectedPanel
       imageScale: 1,
     });
   }
+  
+  function addBubble() {
+    const bubble: SpeechBubbleType = {
+      id: crypto.randomUUID(),
+      x: 100,
+      y: 100,
+      width: 180,
+      height: 110,
+      text: "Your dialogue here",
+      fontSize: 18,
+    };
+
+    setBubbles((current) => [...current, bubble]);
+    setSelectedBubbleId(bubble.id);
+    setSelectedPanelId(null);
+  }
+
+  function updateBubble(
+    id: string,
+    changes: Partial<SpeechBubbleType>
+  ) {
+    setBubbles((current) =>
+      current.map((bubble) => {
+        if (bubble.id !== id) return bubble;
+
+        const updated = { ...bubble, ...changes };
+
+        const width = clampRound(updated.width, 80, PAGE_WIDTH);
+        const height = clampRound(updated.height, 60, PAGE_HEIGHT);
+
+        return {
+          ...updated,
+          width,
+          height,
+          x: clampRound(updated.x, 0, PAGE_WIDTH - width),
+          y: clampRound(updated.y, 0, PAGE_HEIGHT - height),
+          fontSize: clampRound(updated.fontSize, 10, 48),
+        };
+      })
+    );
+  }
+
+  function moveBubble(id: string, x: number, y: number) {
+    updateBubble(id, { x, y });
+  }
+
+  function resizeBubble(
+    id: string,
+    width: number,
+    height: number
+  ) {
+    setBubbles((current) =>
+      current.map((bubble) => {
+        if (bubble.id !== id) return bubble;
+
+        return {
+          ...bubble,
+          width: clampRound(width, 80, PAGE_WIDTH - bubble.x),
+          height: clampRound(height, 60, PAGE_HEIGHT - bubble.y),
+        };
+      })
+    );
+  }
+
+  function deleteBubble() {
+    if (!selectedBubbleId) return;
+
+    setBubbles((current) =>
+      current.filter((bubble) => bubble.id !== selectedBubbleId)
+    );
+
+    setSelectedBubbleId(null);
+  }
+
+  function duplicateBubble() {
+    if (!selectedBubble) return;
+
+    const copy: SpeechBubbleType = {
+      ...selectedBubble,
+      id: crypto.randomUUID(),
+      x: Math.min(
+        selectedBubble.x + 20,
+        PAGE_WIDTH - selectedBubble.width
+      ),
+      y: Math.min(
+        selectedBubble.y + 20,
+        PAGE_HEIGHT - selectedBubble.height
+      ),
+    };
+
+    setBubbles((current) => [...current, copy]);
+    setSelectedBubbleId(copy.id);
+    setSelectedPanelId(null);
+  }
 
   return (
     <main className="min-h-screen bg-zinc-900 text-white">
@@ -219,12 +322,22 @@ const maxImageY = selectedPanel
           Manga Compositor
         </h1>
 
+        
+      <div className="flex gap-3">
         <button
           onClick={addPanel}
           className="rounded bg-white px-4 py-2 font-medium text-black hover:bg-zinc-200"
         >
           Add Panel
         </button>
+
+        <button
+          onClick={addBubble}
+          className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+        >
+          Add Speech Bubble
+        </button>
+      </div>
       </header>
 
       <div className="flex min-h-[calc(100vh-4rem)]">
@@ -242,27 +355,105 @@ const maxImageY = selectedPanel
               width: PAGE_WIDTH,
               height: PAGE_HEIGHT,
             }}
-            onPointerDown={() => setSelectedPanelId(null)}
+            onPointerDown={() => {
+              setSelectedPanelId(null);
+              setSelectedBubbleId(null);
+            }}
           >
             {panels.map((panel) => (
               <MangaPanel
                 key={panel.id}
                 panel={panel}
-                selected={selectedPanelId === panel.id}
-                onSelect={() => setSelectedPanelId(panel.id)}
+                selected={selectedPanelId === panel.id}  
+                onSelect={() => {
+                  setSelectedPanelId(panel.id);
+                  setSelectedBubbleId(null);
+                }}
                 onMove={movePanel}
                 onResize={resizePanel}
                 onMoveArtwork={moveArtwork}
               />
             ))}
+   
+          {bubbles.map((bubble) => (
+            <SpeechBubble
+              key={bubble.id}
+              bubble={bubble}
+              selected={selectedBubbleId === bubble.id}
+              onSelect={() => {
+                setSelectedBubbleId(bubble.id);
+                setSelectedPanelId(null);
+              }}
+              onMove={moveBubble}
+              onResize={resizeBubble}
+            />
+          ))}
           </div>
         </section>
 
         <aside className="w-64 shrink-0 border-l border-zinc-700 bg-zinc-800 p-4">
           <h2 className="mb-5 font-semibold">Properties</h2>
 
-          {selectedPanel ? (
-            <div className="space-y-4">
+          
+        {selectedBubble ? (
+          <div className="space-y-4">
+            <p className="font-semibold">Speech Bubble</p>
+
+            <label className="block text-sm">
+              Dialogue
+              <textarea
+                value={selectedBubble.text}
+                onChange={(event) =>
+                  updateBubble(selectedBubble.id, {
+                    text: event.target.value,
+                  })
+                }
+                rows={4}
+                className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
+              />
+            </label>
+
+            {(["x", "y", "width", "height", "fontSize"] as const).map(
+              (property) => (
+                <label key={property} className="block text-sm">
+                  {property === "fontSize"
+                    ? "Font Size"
+                    : property.toUpperCase()}
+
+                  <input
+                    type="number"
+                    value={selectedBubble[property]}
+                    onChange={(event) => {
+                      const value = event.target.valueAsNumber;
+                      if (!Number.isFinite(value)) return;
+
+                      updateBubble(selectedBubble.id, {
+                        [property]: value,
+                      });
+                    }}
+                    className="mt-1 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
+                  />
+                </label>
+              )
+            )}
+
+            <button
+              onClick={duplicateBubble}
+              className="w-full rounded bg-blue-600 px-4 py-2 hover:bg-blue-700"
+            >
+              Duplicate Bubble
+            </button>
+
+            <button
+              onClick={deleteBubble}
+              className="w-full rounded bg-red-600 px-4 py-2 hover:bg-red-700"
+            >
+              Delete Bubble
+            </button>
+          </div>
+        ) : selectedPanel ? (
+          <div className="space-y-4">
+
               <p className="text-sm text-zinc-400">
                 Selected Panel
               </p>
