@@ -230,6 +230,13 @@ const maxImageY = selectedPanel
       height: 110,
       text: "Your dialogue here",
       fontSize: 18,
+      shape: "oval",
+      showTail: false,
+      textAlign: "center",
+      bold: false,
+      italic: false,
+      borderWidth: 2,
+      borderColor: "#000000",
     };
 
     setBubbles((current) => [...current, bubble]);
@@ -257,6 +264,7 @@ const maxImageY = selectedPanel
           x: clampRound(updated.x, 0, PAGE_WIDTH - width),
           y: clampRound(updated.y, 0, PAGE_HEIGHT - height),
           fontSize: clampRound(updated.fontSize, 10, 48),
+          borderWidth: clampRound(updated.borderWidth ?? 2, 1, 8),
         };
       })
     );
@@ -436,6 +444,119 @@ const maxImageY = selectedPanel
                 </label>
               )
             )}
+            
+            <div className="space-y-4 border-t border-zinc-600 pt-4">
+              <h3 className="font-medium">Bubble Styling</h3>
+
+              <label className="block text-sm">
+                Bubble Shape
+                <select
+                  value={selectedBubble.shape ?? "oval"}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      shape: event.target.value as
+                        "oval" | "rectangle" | "thought",
+                    })
+                  }
+                  className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2"
+                >
+                  <option value="oval">Oval</option>
+                  <option value="rectangle">Rectangle</option>
+                  <option value="thought">Thought Bubble</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedBubble.showTail ?? false}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      showTail: event.target.checked,
+                    })
+                  }
+                />
+                Show Speech Tail
+              </label>
+
+              <label className="block text-sm">
+                Text Alignment
+                <select
+                  value={selectedBubble.textAlign ?? "center"}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      textAlign: event.target.value as
+                        "left" | "center" | "right",
+                    })
+                  }
+                  className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedBubble.bold ?? false}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      bold: event.target.checked,
+                    })
+                  }
+                />
+                Bold Text
+              </label>
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedBubble.italic ?? false}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      italic: event.target.checked,
+                    })
+                  }
+                />
+                Italic Text
+              </label>
+
+              <label className="block text-sm">
+                Outline Thickness
+                <input
+                  type="range"
+                  min={1}
+                  max={8}
+                  step={1}
+                  value={selectedBubble.borderWidth ?? 2}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      borderWidth: Number(event.target.value),
+                    })
+                  }
+                  className="mt-2 w-full"
+                />
+                <span className="text-xs text-zinc-400">
+                  {selectedBubble.borderWidth ?? 2}px
+                </span>
+              </label>
+
+              <label className="block text-sm">
+                Outline Color
+                <input
+                  type="color"
+                  value={selectedBubble.borderColor ?? "#000000"}
+                  onChange={(event) =>
+                    updateBubble(selectedBubble.id, {
+                      borderColor: event.target.value,
+                    })
+                  }
+                  className="mt-2 block h-10 w-full cursor-pointer"
+                />
+              </label>
+            </div>
 
             <button
               onClick={duplicateBubble}
