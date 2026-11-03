@@ -1,5 +1,6 @@
 "use client";
 
+import { toPng } from "html-to-image";
 import { useRef, useState } from "react";
 import type { MangaPanel as MangaPanelType } from "../types/manga";
 import MangaPanel from "./MangaPanel";
@@ -40,7 +41,9 @@ export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const mangaPageRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
   const [bubbles, setBubbles] = useState<SpeechBubbleType[]>([]);
   const [selectedBubbleId, setSelectedBubbleId] = useState<string | null>(null);
 
@@ -337,6 +340,39 @@ const maxImageY = selectedPanel
     });
   }
 
+  
+  async function exportPage() {
+    if (!mangaPageRef.current || isExporting) return;
+
+    setIsExporting(true);
+
+    try {
+      // Wait for React to hide selection outlines and handles.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+
+      const dataUrl = await toPng(mangaPageRef.current, {
+        width: PAGE_WIDTH,
+        height: PAGE_HEIGHT,
+        pixelRatio: 1,
+        backgroundColor: "#ffffff",
+      });
+
+      const link = document.createElement("a");
+      link.download = "manga-page.png";
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error("Failed to export manga page:", error);
+      alert("Unable to export the manga page.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-zinc-900 text-white">
       <header className="flex h-16 items-center justify-between border-b border-zinc-700 px-6">
@@ -359,6 +395,13 @@ const maxImageY = selectedPanel
         >
           Add Speech Bubble
         </button>
+        <button
+          onClick={exportPage}
+          disabled={isExporting}
+          className="rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {isExporting ? "Exporting..." : "Export PNG"}
+        </button>
       </div>
       </header>
 
@@ -372,6 +415,7 @@ const maxImageY = selectedPanel
 
         <section className="flex flex-1 items-start justify-center overflow-auto bg-zinc-700 p-10">
           <div
+            ref={mangaPageRef}
             className="relative shrink-0 bg-white shadow-2xl"
             style={{
               width: PAGE_WIDTH,
@@ -386,7 +430,7 @@ const maxImageY = selectedPanel
               <MangaPanel
                 key={panel.id}
                 panel={panel}
-                selected={selectedPanelId === panel.id}  
+                selected={selectedPanelId === panel.id && !isExporting}  
                 onSelect={() => {
                   setSelectedPanelId(panel.id);
                   setSelectedBubbleId(null);
@@ -401,7 +445,7 @@ const maxImageY = selectedPanel
             <SpeechBubble
               key={bubble.id}
               bubble={bubble}
-              selected={selectedBubbleId === bubble.id}
+              selected={selectedBubbleId === bubble.id && !isExporting}
               onSelect={() => {
                 setSelectedBubbleId(bubble.id);
                 setSelectedPanelId(null);
