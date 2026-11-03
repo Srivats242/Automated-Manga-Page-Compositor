@@ -322,6 +322,20 @@ const maxImageY = selectedPanel
     setSelectedBubbleId(copy.id);
     setSelectedPanelId(null);
   }
+  
+  function resetBubbleStyling() {
+    if (!selectedBubbleId) return;
+
+    updateBubble(selectedBubbleId, {
+      shape: "oval",
+      showTail: false,
+      textAlign: "center",
+      bold: false,
+      italic: false,
+      borderWidth: 2,
+      borderColor: "#000000",
+    });
+  }
 
   return (
     <main className="min-h-screen bg-zinc-900 text-white">
@@ -556,6 +570,13 @@ const maxImageY = selectedPanel
                   className="mt-2 block h-10 w-full cursor-pointer"
                 />
               </label>
+
+              <button
+                onClick={resetBubbleStyling}
+                className="w-full rounded bg-zinc-600 px-4 py-2 text-white hover:bg-zinc-500"
+              >
+                Reset Bubble Styling
+              </button>
             </div>
 
             <button
