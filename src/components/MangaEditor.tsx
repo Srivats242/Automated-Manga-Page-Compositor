@@ -340,6 +340,18 @@ const maxImageY = selectedPanel
     });
   }
 
+  function clearPage() {
+    const confirmed = window.confirm(
+      "Clear the entire manga page? This will remove all panels and speech bubbles."
+    );
+
+  if (!confirmed) return;
+
+    setPanels([]);
+    setBubbles([]);
+    setSelectedPanelId(null);
+    setSelectedBubbleId(null);
+  }
   
   async function exportPage() {
     if (!mangaPageRef.current || isExporting) return;
@@ -401,6 +413,12 @@ const maxImageY = selectedPanel
           className="rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
           {isExporting ? "Exporting..." : "Export PNG"}
+        </button>
+        <button
+          onClick={clearPage}
+          className="rounded bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+        >
+          Clear Page
         </button>
       </div>
       </header>
