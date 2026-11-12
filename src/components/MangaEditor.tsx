@@ -11,6 +11,13 @@ const PAGE_WIDTH = 600;
 const PAGE_HEIGHT = 850;
 const MIN_SIZE = 50;
 
+type EditorSnapshot = {
+  panels: MangaPanelType[];
+  bubbles: SpeechBubbleType[];
+};
+
+const MAX_HISTORY = 30;
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max));
 }
@@ -48,6 +55,9 @@ export default function MangaEditor() {
   const [bubbles, setBubbles] = useState<SpeechBubbleType[]>([]);
   const [selectedBubbleId, setSelectedBubbleId] = useState<string | null>(null);
 
+  const [past, setPast] = useState<EditorSnapshot[]>([]);
+  const [future, setFuture] = useState<EditorSnapshot[]>([]);
+
   const selectedBubble = bubbles.find(
     (bubble) => bubble.id === selectedBubbleId
   );
@@ -60,11 +70,70 @@ export default function MangaEditor() {
   ? (selectedPanel.width * (selectedPanel.imageScale - 1)) / 2
   : 0;
 
-const maxImageY = selectedPanel
-  ? (selectedPanel.height * (selectedPanel.imageScale - 1)) / 2
-  : 0;
+  const maxImageY = selectedPanel
+    ? (selectedPanel.height * (selectedPanel.imageScale - 1)) / 2
+    : 0;
+  
+  function recordHistory() {
+    const snapshot: EditorSnapshot = {
+      panels,
+      bubbles,
+    };
+
+    setPast((current) => [
+      ...current.slice(-(MAX_HISTORY - 1)),
+      snapshot,
+    ]);
+
+    setFuture([]);
+  }
+
+
+function undo() {
+  if (past.length === 0) return;
+
+  const previous = past[past.length - 1];
+
+  setFuture((current) => [
+    {
+      panels,
+      bubbles,
+    },
+    ...current,
+  ]);
+
+  setPanels(previous.panels);
+  setBubbles(previous.bubbles);
+  setPast((current) => current.slice(0, -1));
+
+  setSelectedPanelId(null);
+  setSelectedBubbleId(null);
+}
+
+  function redo() {
+    if (future.length === 0) return;
+
+    const next = future[0];
+
+    setPast((current) => [
+      ...current.slice(-(MAX_HISTORY - 1)),
+      {
+        panels,
+        bubbles,
+      },
+    ]);
+
+    setPanels(next.panels);
+    setBubbles(next.bubbles);
+    setFuture((current) => current.slice(1));
+
+    setSelectedPanelId(null);
+    setSelectedBubbleId(null);
+  }
 
   function addPanel() {
+    recordHistory();
+
     const newPanel: MangaPanelType = {
       id: crypto.randomUUID(),
       x: 50,
@@ -147,6 +216,7 @@ const maxImageY = selectedPanel
   function deletePanel() {
     if (!selectedPanelId) return;
 
+    recordHistory();
     setPanels((current) =>
       current.filter((panel) => panel.id !== selectedPanelId)
     );
@@ -156,6 +226,8 @@ const maxImageY = selectedPanel
 
   function duplicatePanel() {
     if (!selectedPanel) return;
+
+    recordHistory();
 
     const copy: MangaPanelType = {
       ...selectedPanel,
@@ -226,6 +298,8 @@ const maxImageY = selectedPanel
   }
   
   function addBubble() {
+    recordHistory();
+
     const bubble: SpeechBubbleType = {
       id: crypto.randomUUID(),
       x: 100,
@@ -274,6 +348,25 @@ const maxImageY = selectedPanel
     );
   }
 
+  function editBubble(
+    id: string,
+    changes: Partial<SpeechBubbleType>
+  ) {
+    const bubble = bubbles.find((item) => item.id === id);
+
+    if (!bubble) return;
+
+    const hasChanges = Object.entries(changes).some(
+      ([key, value]) =>
+        bubble[key as keyof SpeechBubbleType] !== value
+    );
+
+    if (!hasChanges) return;
+
+    recordHistory();
+    updateBubble(id, changes);
+  }
+
   function moveBubble(id: string, x: number, y: number) {
     updateBubble(id, { x, y });
   }
@@ -299,6 +392,8 @@ const maxImageY = selectedPanel
   function deleteBubble() {
     if (!selectedBubbleId) return;
 
+    recordHistory();
+
     setBubbles((current) =>
       current.filter((bubble) => bubble.id !== selectedBubbleId)
     );
@@ -309,6 +404,7 @@ const maxImageY = selectedPanel
   function duplicateBubble() {
     if (!selectedBubble) return;
 
+    recordHistory();
     const copy: SpeechBubbleType = {
       ...selectedBubble,
       id: crypto.randomUUID(),
@@ -347,6 +443,9 @@ const maxImageY = selectedPanel
     );
 
   if (!confirmed) return;
+  
+  if (panels.length === 0 && bubbles.length === 0) return;
+    recordHistory();
 
     setPanels([]);
     setBubbles([]);
@@ -481,6 +580,10 @@ const maxImageY = selectedPanel
 
       setPanels(project.panels);
       setBubbles(project.bubbles);
+
+      setPast([]);
+      setFuture([]);
+
       setSelectedPanelId(null);
       setSelectedBubbleId(null);
     } catch (error) {
@@ -532,6 +635,23 @@ const maxImageY = selectedPanel
 
         
       <div className="flex gap-3">
+
+        <button
+          onClick={undo}
+          disabled={past.length === 0}
+          className="rounded bg-zinc-600 px-4 py-2 font-medium text-white hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Undo
+        </button>
+
+        <button
+          onClick={redo}
+          disabled={future.length === 0}
+          className="rounded bg-zinc-600 px-4 py-2 font-medium text-white hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Redo
+        </button>
+
         <button
           onClick={addPanel}
           className="rounded bg-white px-4 py-2 font-medium text-black hover:bg-zinc-200"
@@ -616,6 +736,7 @@ const maxImageY = selectedPanel
                 onMove={movePanel}
                 onResize={resizePanel}
                 onMoveArtwork={moveArtwork}
+                onEditStart={recordHistory}
               />
             ))}
    
@@ -630,6 +751,7 @@ const maxImageY = selectedPanel
               }}
               onMove={moveBubble}
               onResize={resizeBubble}
+              onEditStart={recordHistory}
             />
           ))}
           </div>
@@ -689,7 +811,7 @@ const maxImageY = selectedPanel
                 <select
                   value={selectedBubble.shape ?? "oval"}
                   onChange={(event) =>
-                    updateBubble(selectedBubble.id, {
+                    editBubble(selectedBubble.id, {
                       shape: event.target.value as
                         "oval" | "rectangle" | "thought",
                     })
@@ -738,7 +860,7 @@ const maxImageY = selectedPanel
                   type="checkbox"
                   checked={selectedBubble.bold ?? false}
                   onChange={(event) =>
-                    updateBubble(selectedBubble.id, {
+                    editBubble(selectedBubble.id, {
                       bold: event.target.checked,
                     })
                   }
@@ -751,7 +873,7 @@ const maxImageY = selectedPanel
                   type="checkbox"
                   checked={selectedBubble.italic ?? false}
                   onChange={(event) =>
-                    updateBubble(selectedBubble.id, {
+                    editBubble(selectedBubble.id, {
                       italic: event.target.checked,
                     })
                   }

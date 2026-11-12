@@ -10,6 +10,7 @@ type Props = {
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, width: number, height: number) => void;
+  onEditStart: () => void;
 };
 
 type PointerStart = {
@@ -27,13 +28,16 @@ export default function SpeechBubble({
   onSelect,
   onMove,
   onResize,
+  onEditStart,
 }: Props) {
   const dragStart = useRef<PointerStart | null>(null);
   const resizeStart = useRef<PointerStart | null>(null);
+  const historyRecorded = useRef(false);
 
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
+    historyRecorded.current = false;
 
     dragStart.current = {
       pointerX: event.clientX,
@@ -53,6 +57,18 @@ export default function SpeechBubble({
     const dx = event.clientX - dragStart.current.pointerX;
     const dy = event.clientY - dragStart.current.pointerY;
 
+    if (
+      !historyRecorded.current &&
+      Math.hypot(dx, dy) < 4
+    ) {
+      return;
+    }
+
+    if (!historyRecorded.current) {
+      onEditStart();
+      historyRecorded.current = true;
+    }
+
     onMove(
       bubble.id,
       dragStart.current.x + dx,
@@ -63,6 +79,7 @@ export default function SpeechBubble({
   function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
+    historyRecorded.current = false;
 
     resizeStart.current = {
       pointerX: event.clientX,
@@ -84,6 +101,18 @@ export default function SpeechBubble({
     const dx = event.clientX - resizeStart.current.pointerX;
     const dy = event.clientY - resizeStart.current.pointerY;
 
+    if (
+      !historyRecorded.current &&
+      Math.hypot(dx, dy) < 4
+    ) {
+      return;
+    }
+
+    if (!historyRecorded.current) {
+      onEditStart();
+      historyRecorded.current = true;
+    }
+
     onResize(
       bubble.id,
       resizeStart.current.width + dx,
@@ -104,9 +133,11 @@ export default function SpeechBubble({
       onPointerMove={drag}
       onPointerUp={() => {
         dragStart.current = null;
+        historyRecorded.current = false;
       }}
       onPointerCancel={() => {
         dragStart.current = null;
+        historyRecorded.current = false;
       }}
       className="absolute z-20 flex select-none items-center justify-center bg-white p-4 text-black"
       style={{
@@ -114,7 +145,9 @@ export default function SpeechBubble({
         top: bubble.y,
         width: bubble.width,
         height: bubble.height,
-        border: `${borderWidth}px ${shape === "thought" ? "dashed" : "solid"} ${borderColor}`,
+        border: `${borderWidth}px ${
+          shape === "thought" ? "dashed" : "solid"
+        } ${borderColor}`,
         borderRadius,
         outline: selected ? "2px solid #3b82f6" : "none",
         cursor: "move",
@@ -163,10 +196,12 @@ export default function SpeechBubble({
           onPointerUp={(event) => {
             event.stopPropagation();
             resizeStart.current = null;
+            historyRecorded.current = false;
           }}
           onPointerCancel={(event) => {
             event.stopPropagation();
             resizeStart.current = null;
+            historyRecorded.current = false;
           }}
           className="absolute -bottom-2 -right-2 z-30 h-4 w-4 rounded-sm border border-white bg-blue-500"
           style={{

@@ -12,6 +12,7 @@ type Props = {
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, width: number, height: number) => void;
   onMoveArtwork: (id: string, x: number, y: number) => void;
+  onEditStart: () => void;
 };
 
 export default function MangaPanel({
@@ -21,6 +22,7 @@ export default function MangaPanel({
   onMove,
   onResize,
   onMoveArtwork,
+  onEditStart,
 }: Props) {
   const dragStart = useRef<{
     pointerX: number;
@@ -37,9 +39,12 @@ export default function MangaPanel({
     height: number;
   } | null>(null);
 
+  const historyRecorded = useRef(false);
+
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
+    historyRecorded.current = false;
 
     const mode =
       panel.image && panel.imageMode === "artwork"
@@ -63,6 +68,13 @@ export default function MangaPanel({
     const dx = event.clientX - dragStart.current.pointerX;
     const dy = event.clientY - dragStart.current.pointerY;
 
+    if (dx === 0 && dy === 0) return;
+
+    if (!historyRecorded.current) {
+      onEditStart();
+      historyRecorded.current = true;
+    }
+
     if (dragStart.current.mode === "artwork") {
       onMoveArtwork(
         panel.id,
@@ -80,11 +92,13 @@ export default function MangaPanel({
 
   function stopDrag() {
     dragStart.current = null;
+    historyRecorded.current = false;
   }
 
   function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     onSelect();
+    historyRecorded.current = false;
 
     resizeStart.current = {
       pointerX: event.clientX,
@@ -104,6 +118,13 @@ export default function MangaPanel({
     const dx = event.clientX - resizeStart.current.pointerX;
     const dy = event.clientY - resizeStart.current.pointerY;
 
+    if (dx === 0 && dy === 0) return;
+
+    if (!historyRecorded.current) {
+      onEditStart();
+      historyRecorded.current = true;
+    }
+
     onResize(
       panel.id,
       resizeStart.current.width + dx,
@@ -114,6 +135,7 @@ export default function MangaPanel({
   function stopResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
     resizeStart.current = null;
+    historyRecorded.current = false;
   }
 
   return (
