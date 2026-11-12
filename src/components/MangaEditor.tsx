@@ -57,6 +57,7 @@ export default function MangaEditor() {
 
   const [past, setPast] = useState<EditorSnapshot[]>([]);
   const [future, setFuture] = useState<EditorSnapshot[]>([]);
+  const dialogueHistoryRecorded = useRef(false);
 
   const selectedBubble = bubbles.find(
     (bubble) => bubble.id === selectedBubbleId
@@ -108,6 +109,7 @@ function undo() {
 
   setSelectedPanelId(null);
   setSelectedBubbleId(null);
+  dialogueHistoryRecorded.current = false;
 }
 
   function redo() {
@@ -129,6 +131,7 @@ function undo() {
 
     setSelectedPanelId(null);
     setSelectedBubbleId(null);
+    dialogueHistoryRecorded.current = false;
   }
 
   function addPanel() {
@@ -367,6 +370,12 @@ function undo() {
     updateBubble(id, changes);
   }
 
+  function startDialogueEdit() {
+  if (dialogueHistoryRecorded.current) return;
+
+  recordHistory();
+  dialogueHistoryRecorded.current = true;
+  }
   function moveBubble(id: string, x: number, y: number) {
     updateBubble(id, { x, y });
   }
@@ -768,14 +777,21 @@ function undo() {
             <label className="block text-sm">
               Dialogue
               <textarea
-                value={selectedBubble.text}
-                onChange={(event) =>
-                  updateBubble(selectedBubble.id, {
-                    text: event.target.value,
-                  })
-                }
-                rows={4}
-                className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
+              value={selectedBubble.text}
+              onChange={(event) => {
+                if (event.target.value === selectedBubble.text) return;
+
+                startDialogueEdit();
+
+                updateBubble(selectedBubble.id, {
+                  text: event.target.value,
+                });
+              }}
+              onBlur={() => {
+                dialogueHistoryRecorded.current = false;
+              }}
+              rows={4}
+              className="mt-2 w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-white"
               />
             </label>
 
