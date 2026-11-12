@@ -426,7 +426,7 @@ function undo() {
   function resetBubbleStyling() {
     if (!selectedBubbleId) return;
 
-    updateBubble(selectedBubbleId, {
+    editBubble(selectedBubbleId, {
       shape: "oval",
       showTail: false,
       textAlign: "center",
@@ -829,7 +829,7 @@ function undo() {
                   type="checkbox"
                   checked={selectedBubble.showTail ?? false}
                   onChange={(event) =>
-                    updateBubble(selectedBubble.id, {
+                    editBubble(selectedBubble.id, {
                       showTail: event.target.checked,
                     })
                   }
@@ -842,7 +842,7 @@ function undo() {
                 <select
                   value={selectedBubble.textAlign ?? "center"}
                   onChange={(event) =>
-                    updateBubble(selectedBubble.id, {
+                    editBubble(selectedBubble.id, {
                       textAlign: event.target.value as
                         "left" | "center" | "right",
                     })
