@@ -41,6 +41,7 @@ export default function MangaEditor() {
   const [panels, setPanels] = useState<MangaPanelType[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const mangaPageRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -352,6 +353,143 @@ const maxImageY = selectedPanel
     setSelectedPanelId(null);
     setSelectedBubbleId(null);
   }
+
+
+  function saveProject() {
+    const project = {
+      version: 1,
+      pageWidth: PAGE_WIDTH,
+      pageHeight: PAGE_HEIGHT,
+      panels,
+      bubbles,
+    };
+
+    const json = JSON.stringify(project, null, 2);
+
+    const blob = new Blob([json], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "manga-project.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+
+  async function loadProject(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    // Allow the same project file to be selected again.
+    event.target.value = "";
+
+    try {
+      const text = await file.text();
+      const project: unknown = JSON.parse(text);
+
+      if (
+        typeof project !== "object" ||
+        project === null ||
+        !("version" in project) ||
+        project.version !== 1 ||
+        !("pageWidth" in project) ||
+        project.pageWidth !== PAGE_WIDTH ||
+        !("pageHeight" in project) ||
+        project.pageHeight !== PAGE_HEIGHT ||
+        !("panels" in project) ||
+        !Array.isArray(project.panels) ||
+        !("bubbles" in project) ||
+        !Array.isArray(project.bubbles)
+      ) {
+        alert("Invalid or unsupported manga project file.");
+        return;
+      }
+
+      const validPanel = (panel: unknown): panel is MangaPanelType => {
+        if (typeof panel !== "object" || panel === null) return false;
+
+        const p = panel as Record<string, unknown>;
+
+        return (
+          typeof p.id === "string" &&
+          ["x", "y", "width", "height", "imageX", "imageY", "imageScale"]
+            .every((key) =>
+              typeof p[key] === "number" &&
+              Number.isFinite(p[key])
+            ) &&
+          (p.imageMode === "panel" || p.imageMode === "artwork") &&
+          (p.image === undefined ||
+            (typeof p.image === "string" &&
+              /^data:image\/(png|jpeg|webp);base64,/.test(p.image)))
+        );
+      };
+
+      const validBubble = (
+        bubble: unknown
+      ): bubble is SpeechBubbleType => {
+        if (typeof bubble !== "object" || bubble === null) return false;
+
+        const b = bubble as Record<string, unknown>;
+
+        return (
+          typeof b.id === "string" &&
+          typeof b.text === "string" &&
+          ["x", "y", "width", "height", "fontSize"]
+            .every((key) =>
+              typeof b[key] === "number" &&
+              Number.isFinite(b[key])
+            ) &&
+          (b.shape === undefined ||
+            ["oval", "rectangle", "thought"].includes(String(b.shape))) &&
+          (b.textAlign === undefined ||
+            ["left", "center", "right"].includes(String(b.textAlign))) &&
+          (b.showTail === undefined || typeof b.showTail === "boolean") &&
+          (b.bold === undefined || typeof b.bold === "boolean") &&
+          (b.italic === undefined || typeof b.italic === "boolean") &&
+          (b.borderWidth === undefined ||
+            (typeof b.borderWidth === "number" &&
+              Number.isFinite(b.borderWidth))) &&
+          (b.borderColor === undefined ||
+            (typeof b.borderColor === "string" &&
+              /^#[0-9a-fA-F]{6}$/.test(b.borderColor)))
+        );
+      };
+
+      if (
+        !project.panels.every(validPanel) ||
+        !project.bubbles.every(validBubble)
+      ) {
+        alert("The project contains invalid panel or speech bubble data.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Load this project? Your current unsaved work will be replaced."
+      );
+
+      if (!confirmed) return;
+
+      setPanels(project.panels);
+      setBubbles(project.bubbles);
+      setSelectedPanelId(null);
+      setSelectedBubbleId(null);
+    } catch (error) {
+      console.error("Failed to load manga project:", error);
+      alert("Unable to read the project file. Please select a valid JSON file.");
+    }
+  }
+
+
   
   async function exportPage() {
     if (!mangaPageRef.current || isExporting) return;
@@ -419,6 +557,28 @@ const maxImageY = selectedPanel
           className="rounded bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
         >
           Clear Page
+        </button>
+
+        <button
+          onClick={saveProject}
+          className="rounded bg-purple-600 px-4 py-2 font-medium text-white hover:bg-purple-700"
+        >
+          Save Project
+        </button>
+
+        <input
+          ref={projectInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={loadProject}
+          className="hidden"
+        />
+
+        <button
+          onClick={() => projectInputRef.current?.click()}
+          className="rounded bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
+        >
+          Load Project
         </button>
       </div>
       </header>
